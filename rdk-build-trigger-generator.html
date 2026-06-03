@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RDK Curl Generator</title>
+  <style>
+    :root {
+      --bg: #f5fbff;
+      --text: #163047;
+      --muted: #4d6881;
+      --card: #ffffff;
+      --border: #c9deef;
+      --accent: #0d84ff;
+      --accent-soft: #e5f2ff;
+      --success: #1f9d72;
+      --danger: #cb3a59;
+      --code-bg: #eef5fb;
+      --shadow: 0 14px 32px rgba(16, 64, 106, 0.12);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(900px 480px at -10% -20%, rgba(13, 132, 255, 0.18), transparent 45%),
+        radial-gradient(900px 420px at 120% 0%, rgba(31, 157, 114, 0.14), transparent 50%),
+        linear-gradient(180deg, #f5fbff, #ebf4fc);
+      font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+      padding: 16px;
+      line-height: 1.45;
+    }
+
+    .container {
+      width: 90vw;
+      max-width: 1800px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .header {
+      border: 1px solid #bcd9ee;
+      border-radius: 16px;
+      padding: 20px;
+      background: linear-gradient(120deg, #ffffff 0%, #eff7ff 55%, #f2fcf8 100%);
+      box-shadow: var(--shadow);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 1.6vw + 1rem, 2.2rem);
+      letter-spacing: 0.2px;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+      grid-auto-rows: auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .fields,
+    .output-wrap {
+      display: grid;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font: inherit;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(13, 132, 255, 0.17);
+    }
+
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .code {
+      background: var(--code-bg);
+      font-family: "Cascadia Code", Consolas, monospace;
+      white-space: pre;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .preset-btn {
+      border: 1px solid #bbd8ee;
+      border-radius: 12px;
+      padding: 12px;
+      text-align: left;
+      background: linear-gradient(180deg, #f9fdff, #edf7ff);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .preset-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    .preset-btn strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .preset-btn span {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid #d6e7f3;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    th {
+      background: #edf6ff;
+      color: #2f526f;
+      font-size: 0.83rem;
+      font-weight: 700;
+    }
+
+    .table-input,
+    .table-select {
+      min-width: 160px;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn {
+      border-radius: 10px;
+      border: 1px solid #a6cbe8;
+      background: #f7fbff;
+      color: var(--text);
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #ebf5ff, #dceeff);
+    }
+
+    .btn-success {
+      border-color: #92d9c1;
+      background: linear-gradient(180deg, #e8fbf4, #d6f6e9);
+      color: #1c7557;
+    }
+
+    .btn-danger,
+    .remove-btn {
+      border-color: #ebb8c5;
+      background: #fff1f5;
+      color: #9f2f49;
+    }
+
+    .remove-btn {
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+
+    .checkboxes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f8fcff;
+    }
+
+    .check-item input { accent-color: var(--accent); }
+
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      border-radius: 10px;
+      padding: 8px 11px;
+      border: 1px solid #9dd0f5;
+      background: #ecf7ff;
+      color: #1d4e74;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      font-size: 0.86rem;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1080px) {
+      .span-3,
+      .span-4,
+      .span-6,
+      .span-8,
+      .span-12 {
+        grid-column: span 12;
+      }
+
+      .preset-grid,
+      .checkboxes {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>RDK Curl Generator</h1>
+      <p class="subtitle">Build payload and generate curl only. No trigger, no proxy, no backend.</p>
+    </header>
+
+    <section class="grid">
+      <article class="card span-12">
+        <h2 class="section-title">Job Presets</h2>
+        <div class="preset-grid">
+          <button class="preset-btn" data-preset="rtkXione" type="button">
+            <strong>RTK-XIONE-Middleware-Github</strong>
+            <span>Sets job name only</span>
+          </button>
+          <button class="preset-btn" data-preset="bcmXione" type="button">
+            <strong>BCM-XIONE-XUMO-CHARTER-BOX-Middleware-Github</strong>
+            <span>Sets job name only</span>
+          </button>
+          <button class="preset-btn" data-preset="tvUs" type="button">
+            <strong>TV-US-Middleware-Github</strong>
+            <span>Sets job name only</span>
+          </button>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2 class="section-title">Build Configuration</h2>
+        <div class="fields">
+          <div class="field">
+            <label for="jobName">Job Name</label>
+            <input id="jobName" list="jobList" type="text" placeholder="Select or search job name" />
+            <datalist id="jobList">
+              <option value="RTK-XIONE-Middleware-Github"></option>
+              <option value="RTK-XIONE-Vendor-Github"></option>
+              <option value="APACHE-4K-Vendor-Github"></option>
+              <option value="APACHE-4K-Image-Assembler-Github"></option>
+              <option value="PIONEER-UHD-Vendor-Github"></option>
+              <option value="PIONEER-UHD-Image-Assembler-Github"></option>
+              <option value="RDKE-Application-Github"></option>
+              <option value="TV-US-Middleware-Github"></option>
+              <option value="RTK-XIONE-DE-Middleware-Github"></option>
+              <option value="BCM-XIONE-Vendor-Github"></option>
+            </datalist>
+          </div>
+
+          <div class="field">
+            <label for="branch">Branch</label>
+            <select id="branch">
+              <option value="develop" selected>develop</option>
+              <option value="release">release</option>
+              <option value="feature">feature</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="suffix">Image Name Suffix</label>
+            <input id="suffix" type="text" placeholder="Examples: TEST, APPMANAGER_TEST, SCENESET_DEMO" />
+          </div>
+
+          <div class="field">
+            <label for="jiraTicket">JIRA Ticket</label>
+            <input id="jiraTicket" type="text" placeholder="Examples: RDK-12345" />
+          </div>
+
+          <div class="field">
+            <label for="apiEndpoint">API Endpoint</label>
+            <input id="apiEndpoint" type="text" value="https://rdkciportal.stb.r53.xcal.tv/json/build_trigger" />
+          </div>
+
+          <div class="field">
+            <label for="username">Username (for curl -u)</label>
+            <input id="username" type="text" placeholder="USERNAME" autocomplete="off" />
+          </div>
+
+          <div class="field">
+            <label for="password">Password (for curl -u)</label>
+            <input id="password" type="password" placeholder="PASSWORD" autocomplete="off" />
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2 class="section-title">Advanced Options</h2>
+        <div class="checkboxes">
+          <label class="check-item"><input id="signImages" type="checkbox" />SIGN_IMAGES</label>
+          <label class="check-item"><input id="deployIpk" type="checkbox" />DEPLOY_IPK</label>
+          <label class="check-item"><input id="enableRdkAppManagers" type="checkbox" />ENABLE_RDK_APPMANAGERS</label>
+          <label class="check-item"><input id="enableBuildDistrosToggle" type="checkbox" />ENABLE_BUILD_DISTROS</label>
+        </div>
+
+        <div class="field" style="margin-top: 12px;">
+          <label for="buildDistros">Build Distro Features (space separated)</label>
+          <input id="buildDistros" type="text" placeholder="Example: disable_appinfraui enable_rdkappmanagers_microservice_plugins" />
+          <p class="hint">List distro features separated by spaces.</p>
+        </div>
+
+        <div class="checkboxes">
+          <label class="check-item"><input id="distroPresetDisableAppinfraui" type="checkbox" />disable_appinfraui</label>
+          <label class="check-item"><input id="distroPresetEnablePlugins" type="checkbox" />enable_rdkappmanagers_microservice_plugins</label>
+        </div>
+      </article>
+
+      <article class="card span-12">
+        <h2 class="section-title">Patchset Builder</h2>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Commit Hash</th>
+                <th>Remove</th>
+              </tr>
+            </thead>
+            <tbody id="patchsetBody"></tbody>
+          </table>
+        </div>
+
+        <div class="actions" style="margin-top: 10px;">
+          <button id="addPatchsetRow" type="button" class="btn btn-primary">Add Patchset Row</button>
+          <button id="removePatchsetRow" type="button" class="btn btn-danger">Remove Row</button>
+        </div>
+
+        <div class="field" style="margin-top: 12px;">
+          <label for="metaPatchset">Generated META_PATCHSET</label>
+          <textarea id="metaPatchset" class="code" readonly></textarea>
+          <p class="hint">Format: repository commit-hash | repository commit-hash</p>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2 class="section-title">JSON Preview</h2>
+        <div class="output-wrap">
+          <textarea id="jsonPreview" class="code" readonly></textarea>
+          <div class="actions">
+            <button id="copyJson" type="button" class="btn">Copy JSON</button>
+            <button id="downloadJson" type="button" class="btn btn-success">Download JSON</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-6">
+        <h2 class="section-title">CURL Command</h2>
+        <div class="output-wrap">
+          <textarea id="curlPreview" class="code" readonly></textarea>
+          <div class="actions">
+            <button id="copyCurl" type="button" class="btn btn-success">Copy CURL</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      const DEFAULT_API_ENDPOINT = "https://rdkciportal.stb.r53.xcal.tv/json/build_trigger";
+
+      const JOB_OPTIONS = [
+        "RTK-XIONE-Middleware-Github",
+        "BCM-XIONE-XUMO-CHARTER-BOX-Middleware-Github",
+        "RTK-XIONE-Vendor-Github",
+        "APACHE-4K-Vendor-Github",
+        "APACHE-4K-Image-Assembler-Github",
+        "PIONEER-UHD-Vendor-Github",
+        "PIONEER-UHD-Image-Assembler-Github",
+        "RDKE-Application-Github",
+        "TV-US-Middleware-Github",
+        "RTK-XIONE-DE-Middleware-Github",
+        "BCM-XIONE-Vendor-Github"
+      ];
+
+      const PATCHSET_REPOS = [
+        "meta-rdk-video",
+        "meta-rdk-comcast-video",
+        "meta-app-managers-test",
+        "meta-rdkservices",
+        "meta-rdk-oe",
+        "meta-sceneset",
+        "meta-rdk-shell",
+        "meta-rdk-browser"
+      ];
+
+      const PRESETS = {
+        rtkXione: {
+          job: "RTK-XIONE-Middleware-Github",
+          patchsets: []
+        },
+        bcmXione: {
+          job: "BCM-XIONE-XUMO-CHARTER-BOX-Middleware-Github",
+          patchsets: []
+        },
+        tvUs: {
+          job: "TV-US-Middleware-Github",
+          patchsets: []
+        }
+      };
+
+      const refs = {
+        jobName: document.getElementById("jobName"),
+        branch: document.getElementById("branch"),
+        suffix: document.getElementById("suffix"),
+        jiraTicket: document.getElementById("jiraTicket"),
+        apiEndpoint: document.getElementById("apiEndpoint"),
+        username: document.getElementById("username"),
+        password: document.getElementById("password"),
+        patchsetBody: document.getElementById("patchsetBody"),
+        addPatchsetRow: document.getElementById("addPatchsetRow"),
+        removePatchsetRow: document.getElementById("removePatchsetRow"),
+        metaPatchset: document.getElementById("metaPatchset"),
+        signImages: document.getElementById("signImages"),
+        deployIpk: document.getElementById("deployIpk"),
+        enableRdkAppManagers: document.getElementById("enableRdkAppManagers"),
+        enableBuildDistrosToggle: document.getElementById("enableBuildDistrosToggle"),
+        buildDistros: document.getElementById("buildDistros"),
+        distroPresetDisableAppinfraui: document.getElementById("distroPresetDisableAppinfraui"),
+        distroPresetEnablePlugins: document.getElementById("distroPresetEnablePlugins"),
+        jsonPreview: document.getElementById("jsonPreview"),
+        curlPreview: document.getElementById("curlPreview"),
+        copyJson: document.getElementById("copyJson"),
+        copyCurl: document.getElementById("copyCurl"),
+        downloadJson: document.getElementById("downloadJson"),
+        toast: document.getElementById("toast")
+      };
+
+      function showToast(message) {
+        refs.toast.textContent = message;
+        refs.toast.classList.add("show");
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(function () {
+          refs.toast.classList.remove("show");
+        }, 1600);
+      }
+
+      function createRepoSelect(selected) {
+        const select = document.createElement("select");
+        select.className = "table-select";
+
+        PATCHSET_REPOS.forEach(function (repo) {
+          const option = document.createElement("option");
+          option.value = repo;
+          option.textContent = repo;
+          option.selected = repo === selected;
+          select.appendChild(option);
+        });
+
+        select.addEventListener("change", updateAllOutputs);
+        return select;
+      }
+
+      function createCommitInput(value) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "table-input";
+        input.placeholder = "Enter commit hash or HEAD";
+        input.value = value || "";
+        input.addEventListener("input", updateAllOutputs);
+        return input;
+      }
+
+      function addPatchsetRow(repository, commitHash) {
+        const row = document.createElement("tr");
+
+        const repoTd = document.createElement("td");
+        repoTd.appendChild(createRepoSelect(repository || PATCHSET_REPOS[0]));
+
+        const commitTd = document.createElement("td");
+        commitTd.appendChild(createCommitInput(commitHash || ""));
+
+        const removeTd = document.createElement("td");
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "remove-btn";
+        removeBtn.textContent = "Remove";
+        removeBtn.addEventListener("click", function () {
+          row.remove();
+          if (refs.patchsetBody.children.length === 0) {
+            addPatchsetRow();
+          }
+          updateAllOutputs();
+        });
+        removeTd.appendChild(removeBtn);
+
+        row.appendChild(repoTd);
+        row.appendChild(commitTd);
+        row.appendChild(removeTd);
+
+        refs.patchsetBody.appendChild(row);
+        updateAllOutputs();
+      }
+
+      function removeLastPatchsetRow() {
+        if (refs.patchsetBody.children.length > 1) {
+          refs.patchsetBody.lastElementChild.remove();
+        } else if (refs.patchsetBody.firstElementChild) {
+          const row = refs.patchsetBody.firstElementChild;
+          row.querySelector("select").value = PATCHSET_REPOS[0];
+          row.querySelector("input").value = "";
+        }
+        updateAllOutputs();
+      }
+
+      function sanitizeJobName(value) {
+        const clean = value.trim();
+        if (clean && JOB_OPTIONS.indexOf(clean) === -1) {
+          return clean;
+        }
+        return clean;
+      }
+
+      function collectPatchsets() {
+        const rows = Array.from(refs.patchsetBody.querySelectorAll("tr"));
+        return rows
+          .map(function (row) {
+            return {
+              repository: row.querySelector("select").value.trim(),
+              commitHash: row.querySelector("input").value.trim()
+            };
+          })
+          .filter(function (item) {
+            return item.repository && item.commitHash;
+          });
+      }
+
+      function buildMetaPatchsetString(patchsets) {
+        return patchsets.map(function (item) {
+          return item.repository + " " + item.commitHash;
+        }).join(" | ");
+      }
+
+      function getBuildDistroFeatures() {
+        const tokens = (refs.buildDistros.value || "").trim().split(/\s+/).filter(Boolean);
+
+        if (refs.distroPresetDisableAppinfraui.checked) {
+          tokens.push("disable_appinfraui");
+        }
+        if (refs.distroPresetEnablePlugins.checked) {
+          tokens.push("enable_rdkappmanagers_microservice_plugins");
+        }
+
+        return Array.from(new Set(tokens)).join(" ");
+      }
+
+      function buildPayload() {
+        const patchsets = collectPatchsets();
+        return {
+          JOB_NAME: sanitizeJobName(refs.jobName.value),
+          BRANCH: refs.branch.value,
+          IMAGE_NAME_SUFFIX: refs.suffix.value.trim(),
+          JIRA_TICKET: refs.jiraTicket.value.trim(),
+          META_PATCHSET: buildMetaPatchsetString(patchsets),
+          SIGN_IMAGES: refs.signImages.checked,
+          DEPLOY_IPK: refs.deployIpk.checked,
+          ENABLE_RDK_APPMANAGERS: refs.enableRdkAppManagers.checked,
+          ENABLE_BUILD_DISTROS: refs.enableBuildDistrosToggle.checked ? getBuildDistroFeatures() : ""
+        };
+      }
+
+      function getApiEndpoint() {
+        return (refs.apiEndpoint.value || DEFAULT_API_ENDPOINT).trim() || DEFAULT_API_ENDPOINT;
+      }
+
+      function escapeSingleQuotes(value) {
+        return value.replace(/'/g, "'\\''");
+      }
+
+      function buildCurl(payloadCompact) {
+        const endpoint = getApiEndpoint();
+        const username = (refs.username.value || "USERNAME").trim() || "USERNAME";
+        const password = refs.password.value || "PASSWORD";
+
+        return [
+          "curl -u " + username + ":" + password + " \\",
+          "  -H \"Content-Type: application/json\" \\",
+          "  -H \"Accept: application/json\" \\",
+          "  -X POST \\",
+          "  " + endpoint + " \\",
+          "  -d '" + escapeSingleQuotes(payloadCompact) + "'"
+        ].join("\n");
+      }
+
+      function updateAllOutputs() {
+        const payload = buildPayload();
+        const payloadPretty = JSON.stringify(payload, null, 2);
+        const payloadCompact = JSON.stringify(payload);
+        refs.metaPatchset.value = payload.META_PATCHSET;
+        refs.jsonPreview.value = payloadPretty;
+        refs.curlPreview.value = buildCurl(payloadCompact);
+      }
+
+      function applyPreset(presetKey) {
+        const preset = PRESETS[presetKey];
+        if (!preset) {
+          return;
+        }
+
+        refs.jobName.value = preset.job;
+        refs.patchsetBody.innerHTML = "";
+
+        preset.patchsets.forEach(function (item) {
+          addPatchsetRow(item.repository, item.commitHash);
+        });
+
+        if (!preset.patchsets.length) {
+          addPatchsetRow();
+        }
+
+        updateAllOutputs();
+      }
+
+      async function copyText(text) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const helper = document.createElement("textarea");
+            helper.value = text;
+            helper.style.position = "fixed";
+            helper.style.opacity = "0";
+            document.body.appendChild(helper);
+            helper.focus();
+            helper.select();
+            document.execCommand("copy");
+            helper.remove();
+          }
+          showToast("Copied to clipboard");
+        } catch (err) {
+          showToast("Copy failed");
+        }
+      }
+
+      function downloadJsonFile(text) {
+        const blob = new Blob([text], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "rdk-build-trigger-payload.json";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast("JSON downloaded");
+      }
+
+      function saveCredentials() {
+        try {
+          localStorage.setItem("rdkCurlUsername", refs.username.value);
+          localStorage.setItem("rdkCurlPassword", refs.password.value);
+        } catch (err) {
+          console.error("Failed to save credentials:", err);
+        }
+      }
+
+      function loadCredentials() {
+        try {
+          const savedUsername = localStorage.getItem("rdkCurlUsername");
+          const savedPassword = localStorage.getItem("rdkCurlPassword");
+          if (savedUsername) {
+            refs.username.value = savedUsername;
+          }
+          if (savedPassword) {
+            refs.password.value = savedPassword;
+          }
+        } catch (err) {
+          console.error("Failed to load credentials:", err);
+        }
+      }
+
+      refs.jobName.value = "RTK-XIONE-Middleware-Github";
+      refs.suffix.value = "";
+      loadCredentials();
+      addPatchsetRow();
+
+      refs.addPatchsetRow.addEventListener("click", function () {
+        addPatchsetRow();
+      });
+
+      refs.removePatchsetRow.addEventListener("click", removeLastPatchsetRow);
+
+      refs.username.addEventListener("input", saveCredentials);
+      refs.password.addEventListener("input", saveCredentials);
+
+      [
+        refs.jobName,
+        refs.branch,
+        refs.suffix,
+        refs.jiraTicket,
+        refs.apiEndpoint,
+        refs.username,
+        refs.password,
+        refs.signImages,
+        refs.deployIpk,
+        refs.enableRdkAppManagers,
+        refs.enableBuildDistrosToggle,
+        refs.buildDistros,
+        refs.distroPresetDisableAppinfraui,
+        refs.distroPresetEnablePlugins
+      ].forEach(function (element) {
+        element.addEventListener("input", updateAllOutputs);
+        element.addEventListener("change", updateAllOutputs);
+      });
+
+      Array.from(document.querySelectorAll(".preset-btn")).forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          applyPreset(btn.dataset.preset);
+          showToast("Preset applied");
+        });
+      });
+
+      refs.copyJson.addEventListener("click", function () {
+        copyText(refs.jsonPreview.value);
+      });
+
+      refs.downloadJson.addEventListener("click", function () {
+        downloadJsonFile(refs.jsonPreview.value);
+      });
+
+      refs.copyCurl.addEventListener("click", function () {
+        copyText(refs.curlPreview.value);
+      });
+
+      updateAllOutputs();
+    })();
+  </script>
+</body>
+</html>
