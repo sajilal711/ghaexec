@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RDK Curl Generator</title>
+  <link rel="icon" href="data:image/svg+xml,
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+<text y='.9em' font-size='90'>🚀</text>
+</svg>">
   <style>
     :root {
       --bg: #f5fbff;
@@ -400,11 +404,13 @@
           <div class="field">
             <label for="username">Username (for curl -u)</label>
             <input id="username" type="text" placeholder="USERNAME" autocomplete="off" />
+            <p class="hint"><em>Use your NTID.</em></p>
           </div>
 
           <div class="field">
             <label for="password">Password (for curl -u)</label>
             <input id="password" type="password" placeholder="PASSWORD" autocomplete="off" />
+            <p class="hint"><em>Generate token in rdkportal &gt; User Settings &gt; Generate Token.</em></p>
           </div>
         </div>
       </article>
@@ -419,6 +425,14 @@
         </div>
 
         <div class="field" style="margin-top: 12px;">
+          <label>HTTP Mirror Mode</label>
+          <div class="checkboxes">
+            <label class="check-item"><input id="updateHttpMirror" type="checkbox" />UPDATE_HTTP_MIRROR</label>
+          </div>
+            <p class="hint">When enabled, payload sets USE_HTTP_MIRROR=false and UPDATE_HTTP_MIRROR=true. When disabled, both keys are omitted so backend defaults apply.</p>
+        </div>
+
+        <div class="field" style="margin-top: 12px;">
           <label for="buildDistros">Build Distro Features (space separated)</label>
           <input id="buildDistros" type="text" placeholder="Example: disable_appinfraui enable_rdkappmanagers_microservice_plugins" />
           <p class="hint">List distro features separated by spaces.</p>
@@ -427,6 +441,8 @@
         <div class="checkboxes">
           <label class="check-item"><input id="distroPresetDisableAppinfraui" type="checkbox" />disable_appinfraui</label>
           <label class="check-item"><input id="distroPresetEnablePlugins" type="checkbox" />enable_rdkappmanagers_microservice_plugins</label>
+          <label class="check-item"><input id="distroPresetSkyAsPlugins" type="checkbox" />sky-as-plugins</label>
+          <label class="check-item"><input id="distroPresetEnableAppcDebugVariant" type="checkbox" />enable_appc + debug-variant</label>
         </div>
       </article>
 
@@ -485,6 +501,7 @@
   <script>
     (function () {
       const DEFAULT_API_ENDPOINT = "https://rdkciportal.stb.r53.xcal.tv/json/build_trigger";
+      const STORAGE_KEY = "rdkCurlGeneratorStateV1";
 
       const JOB_OPTIONS = [
         "RTK-XIONE-Middleware-Github",
@@ -504,11 +521,9 @@
         "meta-rdk-video",
         "meta-rdk-comcast-video",
         "meta-app-managers-test",
-        "meta-rdkservices",
-        "meta-rdk-oe",
-        "meta-sceneset",
-        "meta-rdk-shell",
-        "meta-rdk-browser"
+        "meta-rdk-sky",
+        "meta-middleware-development",
+        "meta-middleware-cspc-support"
       ];
 
       const PRESETS = {
@@ -542,9 +557,12 @@
         deployIpk: document.getElementById("deployIpk"),
         enableRdkAppManagers: document.getElementById("enableRdkAppManagers"),
         enableBuildDistrosToggle: document.getElementById("enableBuildDistrosToggle"),
+        updateHttpMirror: document.getElementById("updateHttpMirror"),
         buildDistros: document.getElementById("buildDistros"),
         distroPresetDisableAppinfraui: document.getElementById("distroPresetDisableAppinfraui"),
         distroPresetEnablePlugins: document.getElementById("distroPresetEnablePlugins"),
+        distroPresetSkyAsPlugins: document.getElementById("distroPresetSkyAsPlugins"),
+        distroPresetEnableAppcDebugVariant: document.getElementById("distroPresetEnableAppcDebugVariant"),
         jsonPreview: document.getElementById("jsonPreview"),
         curlPreview: document.getElementById("curlPreview"),
         copyJson: document.getElementById("copyJson"),
@@ -667,13 +685,98 @@
         if (refs.distroPresetEnablePlugins.checked) {
           tokens.push("enable_rdkappmanagers_microservice_plugins");
         }
+        if (refs.distroPresetSkyAsPlugins.checked) {
+          tokens.push("sky-as-plugins");
+        }
+        if (refs.distroPresetEnableAppcDebugVariant.checked) {
+          tokens.push("enable_appc");
+          tokens.push("debug-variant");
+        }
 
         return Array.from(new Set(tokens)).join(" ");
       }
 
+      function buildStateSnapshot() {
+        return {
+          jobName: refs.jobName.value,
+          branch: refs.branch.value,
+          suffix: refs.suffix.value,
+          jiraTicket: refs.jiraTicket.value,
+          apiEndpoint: refs.apiEndpoint.value,
+          username: refs.username.value,
+          password: refs.password.value,
+          signImages: refs.signImages.checked,
+          deployIpk: refs.deployIpk.checked,
+          enableRdkAppManagers: refs.enableRdkAppManagers.checked,
+          enableBuildDistrosToggle: refs.enableBuildDistrosToggle.checked,
+          updateHttpMirror: refs.updateHttpMirror.checked,
+          buildDistros: refs.buildDistros.value,
+          distroPresetDisableAppinfraui: refs.distroPresetDisableAppinfraui.checked,
+          distroPresetEnablePlugins: refs.distroPresetEnablePlugins.checked,
+          distroPresetSkyAsPlugins: refs.distroPresetSkyAsPlugins.checked,
+          distroPresetEnableAppcDebugVariant: refs.distroPresetEnableAppcDebugVariant.checked,
+          patchsets: collectPatchsets()
+        };
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(buildStateSnapshot()));
+        } catch (err) {
+          console.error("Failed to save form state:", err);
+        }
+      }
+
+      function loadState() {
+        let state;
+
+        try {
+          state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        } catch (err) {
+          console.error("Failed to parse saved form state:", err);
+          state = null;
+        }
+
+        if (!state || typeof state !== "object") {
+          refs.jobName.value = "RTK-XIONE-Middleware-Github";
+          refs.suffix.value = "";
+          addPatchsetRow();
+          return;
+        }
+
+        refs.jobName.value = state.jobName || "RTK-XIONE-Middleware-Github";
+        refs.branch.value = state.branch || "develop";
+        refs.suffix.value = state.suffix || "";
+        refs.jiraTicket.value = state.jiraTicket || "";
+        refs.apiEndpoint.value = state.apiEndpoint || DEFAULT_API_ENDPOINT;
+        refs.username.value = state.username || "";
+        refs.password.value = state.password || "";
+        refs.signImages.checked = !!state.signImages;
+        refs.deployIpk.checked = !!state.deployIpk;
+        refs.enableRdkAppManagers.checked = !!state.enableRdkAppManagers;
+        refs.enableBuildDistrosToggle.checked = !!state.enableBuildDistrosToggle;
+        refs.updateHttpMirror.checked = !!(state.updateHttpMirror || state.httpMirrorModeUpdate);
+
+        refs.buildDistros.value = state.buildDistros || "";
+        refs.distroPresetDisableAppinfraui.checked = !!state.distroPresetDisableAppinfraui;
+        refs.distroPresetEnablePlugins.checked = !!state.distroPresetEnablePlugins;
+        refs.distroPresetSkyAsPlugins.checked = !!state.distroPresetSkyAsPlugins;
+        refs.distroPresetEnableAppcDebugVariant.checked = !!state.distroPresetEnableAppcDebugVariant;
+
+        refs.patchsetBody.innerHTML = "";
+
+        if (Array.isArray(state.patchsets) && state.patchsets.length) {
+          state.patchsets.forEach(function (item) {
+            addPatchsetRow(item.repository, item.commitHash);
+          });
+        } else {
+          addPatchsetRow();
+        }
+      }
+
       function buildPayload() {
         const patchsets = collectPatchsets();
-        return {
+        const payload = {
           JOB_NAME: sanitizeJobName(refs.jobName.value),
           BRANCH: refs.branch.value,
           IMAGE_NAME_SUFFIX: refs.suffix.value.trim(),
@@ -684,6 +787,13 @@
           ENABLE_RDK_APPMANAGERS: refs.enableRdkAppManagers.checked,
           ENABLE_BUILD_DISTROS: refs.enableBuildDistrosToggle.checked ? getBuildDistroFeatures() : ""
         };
+
+        if (refs.updateHttpMirror.checked) {
+          payload.USE_HTTP_MIRROR = false;
+          payload.UPDATE_HTTP_MIRROR = true;
+        }
+
+        return payload;
       }
 
       function getApiEndpoint() {
@@ -716,6 +826,7 @@
         refs.metaPatchset.value = payload.META_PATCHSET;
         refs.jsonPreview.value = payloadPretty;
         refs.curlPreview.value = buildCurl(payloadCompact);
+        saveState();
       }
 
       function applyPreset(presetKey) {
@@ -725,16 +836,6 @@
         }
 
         refs.jobName.value = preset.job;
-        refs.patchsetBody.innerHTML = "";
-
-        preset.patchsets.forEach(function (item) {
-          addPatchsetRow(item.repository, item.commitHash);
-        });
-
-        if (!preset.patchsets.length) {
-          addPatchsetRow();
-        }
-
         updateAllOutputs();
       }
 
@@ -772,43 +873,13 @@
         showToast("JSON downloaded");
       }
 
-      function saveCredentials() {
-        try {
-          localStorage.setItem("rdkCurlUsername", refs.username.value);
-          localStorage.setItem("rdkCurlPassword", refs.password.value);
-        } catch (err) {
-          console.error("Failed to save credentials:", err);
-        }
-      }
-
-      function loadCredentials() {
-        try {
-          const savedUsername = localStorage.getItem("rdkCurlUsername");
-          const savedPassword = localStorage.getItem("rdkCurlPassword");
-          if (savedUsername) {
-            refs.username.value = savedUsername;
-          }
-          if (savedPassword) {
-            refs.password.value = savedPassword;
-          }
-        } catch (err) {
-          console.error("Failed to load credentials:", err);
-        }
-      }
-
-      refs.jobName.value = "RTK-XIONE-Middleware-Github";
-      refs.suffix.value = "";
-      loadCredentials();
-      addPatchsetRow();
+      loadState();
 
       refs.addPatchsetRow.addEventListener("click", function () {
         addPatchsetRow();
       });
 
       refs.removePatchsetRow.addEventListener("click", removeLastPatchsetRow);
-
-      refs.username.addEventListener("input", saveCredentials);
-      refs.password.addEventListener("input", saveCredentials);
 
       [
         refs.jobName,
@@ -822,9 +893,12 @@
         refs.deployIpk,
         refs.enableRdkAppManagers,
         refs.enableBuildDistrosToggle,
+        refs.updateHttpMirror,
         refs.buildDistros,
         refs.distroPresetDisableAppinfraui,
-        refs.distroPresetEnablePlugins
+        refs.distroPresetEnablePlugins,
+        refs.distroPresetSkyAsPlugins,
+        refs.distroPresetEnableAppcDebugVariant
       ].forEach(function (element) {
         element.addEventListener("input", updateAllOutputs);
         element.addEventListener("change", updateAllOutputs);
